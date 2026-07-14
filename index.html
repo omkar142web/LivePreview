@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HTML Runner Pro</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%237c6bff'/%3E%3Cpath d='M7 9l3 3-3 3M13 15h4' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <!-- CodeMirror 5 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/eclipse.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/xml-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css" />
+    <!-- js-beautify for real HTML formatting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.15.1/beautify-html.min.js"></script>
+    <style>
+        /* ── Reset & variables ── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f0f1a;
+            --panel: #181825;
+            --panel-raised: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --accent: #7c6bff;
+            --accent-dim: #5a4bbf;
+            --text: #e4e4f0;
+            --text-dim: #8888aa;
+            --ok: #4caf50;
+            --warn: #f0c674;
+            --err: #ff8a8a;
+            --radius: 12px;
+        }
+        [data-theme="light"] {
+            --bg: #eef0f7;
+            --panel: #ffffff;
+            --panel-raised: rgba(20, 20, 40, 0.03);
+            --border: rgba(20, 20, 40, 0.1);
+            --accent: #6952f0;
+            --accent-dim: #5541d1;
+            --text: #1c1c2b;
+            --text-dim: #6b6b85;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 14px;
+            transition: background 0.2s, color 0.2s;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #5a5a8a; }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: var(--panel);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo {
+            font-weight: 600;
+            font-size: 18px;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+        }
+        .logo svg { width: 22px; height: 22px; fill: var(--accent); }
+        .logo .pulse {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--text-dim);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .logo .pulse.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+        .logo .pulse.busy { background: var(--warn); box-shadow: 0 0 8px var(--warn); animation: blink 0.9s ease-in-out infinite; }
+        .logo .pulse.err { background: var(--err); box-shadow: 0 0 8px var(--err); }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .header-actions button, .header-actions label {
+            background: var(--panel-raised);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .header-actions button:hover, .header-actions label:hover {
+            background: rgba(128, 128, 160, 0.15);
+            border-color: var(--text-dim);
+            color: var(--text);
+        }
+        .header-actions button:active { transform: scale(0.96); }
+        .header-actions .run-btn {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            font-weight: 500;
+            padding: 6px 18px;
+        }
+        .header-actions .run-btn:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+        .header-actions .run-btn:active { transform: scale(0.96); }
+        .header-actions .run-btn.running { opacity: 0.7; pointer-events: none; }
+        .header-actions .icon-btn { padding: 6px 8px; }
+        .header-actions .icon-btn svg { width: 18px; height: 18px; fill: currentColor; }
+        .header-actions .icon-btn.active { color: var(--accent); border-color: var(--accent); }
+        .toggle-label { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+        .toggle-label input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+        .divider { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+
+        /* ── Main layout ── */
+        .main { display: flex; flex: 1; overflow: hidden; background: var(--bg); }
+        .main.stacked { flex-direction: column; }
+        .editor-wrapper {
+            display: flex; flex-direction: column;
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            min-width: 200px; flex: 1 1 50%; overflow: hidden;
+        }
+        .main.stacked .editor-wrapper { border-right: none; border-bottom: 1px solid var(--border); }
+        .preview-wrapper {
+            display: flex; flex-direction: column;
+            background: var(--panel);
+            flex: 1 1 50%; overflow: hidden; min-width: 200px;
+        }
+        .panel-header {
+            background: var(--panel-raised);
+            padding: 6px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px; font-weight: 500; color: var(--text-dim);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0; min-height: 34px; gap: 8px;
+        }
+        .panel-header .badge {
+            background: var(--panel-raised);
+            border: 1px solid var(--border);
+            padding: 2px 10px; border-radius: 12px; font-size: 11px;
+        }
+        .panel-header .panel-tools { display: flex; align-items: center; gap: 6px; }
+        .panel-header .mini-btn {
+            background: transparent; border: none; color: var(--text-dim);
+            cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: 12px;
+        }
+        .panel-header .mini-btn:hover { color: var(--text); background: rgba(128,128,160,0.15); }
+
+        /* ── Resizer ── */
+        .resizer {
+            width: 6px; background: transparent; cursor: col-resize;
+            flex-shrink: 0; position: relative; z-index: 10; transition: background 0.1s;
+        }
+        .main.stacked .resizer { width: 100%; height: 6px; cursor: row-resize; }
+        .resizer:hover, .resizer.active { background: var(--accent); opacity: 0.5; }
+        .resizer::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px; height: 40px; background: var(--border); border-radius: 2px;
+        }
+        .main.stacked .resizer::after { width: 40px; height: 2px; }
+        .resizer:hover::after, .resizer.active::after { background: var(--accent); }
+
+        /* ── CodeMirror ── */
+        .CodeMirror {
+            height: 100% !important;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 14px;
+        }
+
+        /* ── Preview iframe ── */
+        .preview-frame { flex: 1; background: #fff; position: relative; overflow: hidden; }
+        .preview-frame iframe { width: 100%; height: 100%; border: none; background: #fff; display: block; }
+        .preview-frame .empty-state {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #aaa; background: #f8f8fc; font-size: 16px; gap: 8px; font-family: 'Inter', sans-serif;
+        }
+        .preview-frame .empty-state .kbd {
+            background: #eee; padding: 4px 12px; border-radius: 6px; font-size: 13px; color: #444; border: 1px solid #ccc;
+        }
+        .preview-frame .loading-overlay {
+            position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4);
+            display: none; align-items: center; justify-content: center;
+            color: #fff; font-weight: 500; z-index: 5; backdrop-filter: blur(2px);
+        }
+        .preview-frame .loading-overlay.active { display: flex; }
+
+        /* ── Console panel ── */
+        .console-wrapper {
+            background: var(--panel); border-top: 1px solid var(--border);
+            max-height: 150px; overflow: auto;
+            font-family: 'JetBrains Mono', monospace; font-size: 13px;
+            flex-shrink: 0; display: none;
+        }
+        .console-wrapper.open { display: block; }
+        .console-header {
+            padding: 4px 14px; background: var(--panel-raised); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; color: var(--text-dim); cursor: pointer; user-select: none;
+        }
+        .console-header:hover { background: rgba(128,128,160,0.1); }
+        .console-header .right-tools { display: flex; align-items: center; gap: 10px; }
+        .console-header .clear-console { color: var(--text-dim); cursor: pointer; }
+        .console-header .clear-console:hover { color: var(--text); }
+        .console-body {
+            padding: 6px 14px; color: var(--text); opacity: 0.85;
+            white-space: pre-wrap; word-break: break-all;
+            min-height: 30px; max-height: 120px; overflow-y: auto;
+        }
+        .console-body .log-entry { padding: 2px 0; border-bottom: 1px solid var(--border); }
+        .console-body .log-entry.error { color: var(--err); opacity: 1; }
+        .console-body .log-entry.warn { color: var(--warn); opacity: 1; }
+        .console-body .log-entry.info { color: #8ab4f8; opacity: 1; }
+        .console-body .empty-console { color: var(--text-dim); font-style: italic; }
+
+        /* ── Status bar ── */
+        .status-bar {
+            background: var(--panel); border-top: 1px solid var(--border);
+            padding: 2px 14px; display: flex; justify-content: space-between;
+            font-size: 12px; color: var(--text-dim); flex-shrink: 0; height: 26px; align-items: center;
+        }
+        .status-bar .left, .status-bar .right { display: flex; gap: 16px; align-items: center; }
+        .status-bar .right span { display: flex; align-items: center; gap: 4px; }
+        .status-bar .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+        .status-bar .dot.saved { background: var(--ok); }
+        .status-bar .dot.unsaved { background: var(--warn); }
+        .status-bar button.linklike {
+            background: none; border: none; color: var(--text-dim); cursor: pointer;
+            font-size: 12px; padding: 0; text-decoration: underline; text-underline-offset: 2px;
+        }
+        .status-bar button.linklike:hover { color: var(--text); }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--panel); border: 1px solid var(--border); color: var(--text);
+            padding: 8px 16px; border-radius: 8px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 100;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* ── Responsive / Mobile ── */
+        @media (max-width: 820px) {
+            .main:not(.stacked) { flex-direction: column; }
+            .main:not(.stacked) .editor-wrapper { border-right: none; border-bottom: 1px solid var(--border); flex: 1 1 50%; }
+            .main:not(.stacked) .preview-wrapper { flex: 1 1 50%; }
+            .main:not(.stacked) .resizer { width: 100%; height: 6px; cursor: row-resize; }
+            .main:not(.stacked) .resizer::after { width: 40px; height: 2px; }
+            .header { padding: 8px 14px; }
+            .header-actions button, .header-actions label { padding: 4px 10px; font-size: 12px; }
+            .logo { font-size: 16px; }
+        }
+        @media (max-width: 600px) {
+            .header-actions .hide-mobile { display: none; }
+        }
+        @media (max-width: 480px) {
+            .header-actions .run-btn { padding: 4px 14px; font-size: 12px; }
+            .header-actions .icon-btn { padding: 4px 6px; }
+            .status-bar { font-size: 10px; padding: 0 10px; height: 22px; }
+            .console-body { font-size: 12px; padding: 4px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ─── HEADER ─── -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>
+                HTML Runner
+                <span class="pulse" id="statusPulse" title="Preview status"></span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <label class="toggle-label hide-mobile" title="Re-run automatically as you type">
+                <input type="checkbox" id="autoRunToggle" checked /> Auto Run
+            </label>
+            <div class="divider hide-mobile"></div>
+            <button id="formatBtn" title="Beautify the HTML">Format</button>
+            <button id="copyBtn" title="Copy code to clipboard" class="hide-mobile">Copy</button>
+            <button id="downloadBtn" title="Download as .html file">Download</button>
+            <button id="resetBtn" title="Reset to the default template">Reset</button>
+            <div class="divider hide-mobile"></div>
+            <button id="wrapBtn" class="icon-btn hide-mobile" title="Toggle line wrap">
+                <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h13a3 3 0 1 1 0 6h-4m0 0l2-2m-2 2l2 2M3 18h6"/></svg>
+            </button>
+            <button id="layoutBtn" class="icon-btn hide-mobile" title="Switch side-by-side / stacked layout">
+                <svg viewBox="0 0 24 24"><path d="M3 4h18v16H3z"/><path d="M12 4v16"/></svg>
+            </button>
+            <button id="themeBtn" class="icon-btn" title="Toggle light / dark theme">
+                <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+            </button>
+            <button id="fullscreenBtn" class="icon-btn" title="Fullscreen preview">
+                <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+            <button id="runBtn" class="run-btn">▶ Run</button>
+        </div>
+    </header>
+
+    <!-- ─── MAIN ─── -->
+    <div class="main" id="mainContainer">
+        <div class="editor-wrapper" id="editorWrapper">
+            <div class="panel-header">
+                <span>📄 Editor</span>
+                <span class="badge">HTML</span>
+            </div>
+            <textarea id="codeInput" style="display:none;"></textarea>
+        </div>
+        <div class="resizer" id="resizer" role="separator" aria-label="Resize editor and preview" tabindex="0"></div>
+        <div class="preview-wrapper" id="previewWrapper">
+            <div class="panel-header">
+                <span>🖥️ Preview</span>
+                <span class="badge" id="previewStatus">Ready</span>
+            </div>
+            <div class="preview-frame" id="previewFrame">
+                <div class="loading-overlay" id="loadingOverlay">⏳ Rendering…</div>
+                <div class="empty-state" id="emptyState">
+                    <span>🧩 Nothing to preview</span>
+                    <span class="kbd">Press Ctrl+Enter</span>
+                </div>
+                <iframe id="outputFrame" title="Preview output" sandbox="allow-scripts allow-modals allow-forms allow-popups"></iframe>
+            </div>
+            <!-- Console -->
+            <div class="console-wrapper" id="consoleWrapper">
+                <div class="console-header" id="consoleToggle">
+                    <span>▼ Console (<span id="consoleCount">0</span>)</span>
+                    <span class="right-tools">
+                        <span class="clear-console" id="clearConsole" title="Clear console">Clear</span>
+                    </span>
+                </div>
+                <div class="console-body" id="consoleBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── STATUS BAR ─── -->
+    <div class="status-bar">
+        <div class="left">
+            <span id="statusLineCol">Ln 1, Col 1</span>
+            <span id="statusChars">0 chars</span>
+            <span><span class="dot saved" id="statusDot"></span><span id="statusSaveLabel">Saved</span></span>
+        </div>
+        <div class="right">
+            <button class="linklike" id="shortcutsBtn" title="Keyboard shortcuts">Shortcuts</button>
+            <span>UTF-8</span>
+            <span>HTML</span>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ── DOM refs ──
+            const textarea = document.getElementById('codeInput');
+            const editorWrapper = document.getElementById('editorWrapper');
+            const previewWrapper = document.getElementById('previewWrapper');
+            const mainContainer = document.getElementById('mainContainer');
+            const resizer = document.getElementById('resizer');
+            const iframe = document.getElementById('outputFrame');
+            const runBtn = document.getElementById('runBtn');
+            const autoRunToggle = document.getElementById('autoRunToggle');
+            const formatBtn = document.getElementById('formatBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const wrapBtn = document.getElementById('wrapBtn');
+            const layoutBtn = document.getElementById('layoutBtn');
+            const themeBtn = document.getElementById('themeBtn');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const emptyState = document.getElementById('emptyState');
+            const consoleWrapper = document.getElementById('consoleWrapper');
+            const consoleBody = document.getElementById('consoleBody');
+            const consoleToggle = document.getElementById('consoleToggle');
+            const consoleCount = document.getElementById('consoleCount');
+            const clearConsole = document.getElementById('clearConsole');
+            const previewStatus = document.getElementById('previewStatus');
+            const statusPulse = document.getElementById('statusPulse');
+            const statusLineCol = document.getElementById('statusLineCol');
+            const statusChars = document.getElementById('statusChars');
+            const statusDot = document.getElementById('statusDot');
+            const statusSaveLabel = document.getElementById('statusSaveLabel');
+            const shortcutsBtn = document.getElementById('shortcutsBtn');
+            const toast = document.getElementById('toast');
+
+            // ── State ──
+            let editor = null;
+            let consoleEntries = [];
+            let debounceTimer = null;
+            let saveTimer = null;
+            let isRunning = false;
+            let isConsoleOpen = false;
+            let currentRunId = 0;          // guards against stale iframe messages
+            let readyTimeoutId = null;
+
+            const STORAGE_KEY = 'htmlrunner_code';
+            const THEME_KEY = 'htmlrunner_theme';
+            const WRAP_KEY = 'htmlrunner_wrap';
+            const LAYOUT_KEY = 'htmlrunner_layout';
+            const WIDTH_KEY = 'htmlrunner_width';
+
+            // ── Default template ──
+            const DEFAULT_HTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>My Page</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4ff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: white;
+      padding: 40px 50px;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    h1 { color: #1e1e2f; font-size: 2.4rem; margin-bottom: 6px; }
+    p { color: #4b4b6b; font-size: 1.1rem; }
+    .emoji { font-size: 3rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">🚀</div>
+    <h1>It works!</h1>
+    <p>Your HTML is running inside the preview.</p>
+  </div>
+  <script>
+    console.log('Preview loaded — try editing the code and press Ctrl+Enter.');
+  <\/script>
+</body>
+</html>`;
+
+            // ── Toast helper ──
+            let toastTimer = null;
+            function showToast(msg) {
+                toast.textContent = msg;
+                toast.classList.add('show');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+            }
+
+            // ── Theme ──
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                if (editor) editor.setOption('theme', theme === 'light' ? 'eclipse' : 'dracula');
+                localStorage.setItem(THEME_KEY, theme);
+            }
+            function toggleTheme() {
+                const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+                applyTheme(current === 'light' ? 'dark' : 'light');
+            }
+
+            // ── Layout (side-by-side vs stacked) ──
+            function applyLayout(layout) {
+                mainContainer.classList.toggle('stacked', layout === 'stacked');
+                localStorage.setItem(LAYOUT_KEY, layout);
+                layoutBtn.classList.toggle('active', layout === 'stacked');
+            }
+            function toggleLayout() {
+                const isStacked = mainContainer.classList.contains('stacked');
+                applyLayout(isStacked ? 'side' : 'stacked');
+            }
+
+            // ── Load saved or default ──
+            const saved = localStorage.getItem(STORAGE_KEY);
+            const initialCode = (saved !== null && saved !== '') ? saved : DEFAULT_HTML;
+
+            // ── Init CodeMirror ──
+            function initEditor() {
+                const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+                const savedWrap = localStorage.getItem(WRAP_KEY) === '1';
+
+                editor = CodeMirror.fromTextArea(textarea, {
+                    mode: 'xml',
+                    theme: savedTheme === 'light' ? 'eclipse' : 'dracula',
+                    lineNumbers: true,
+                    indentUnit: 2,
+                    tabSize: 2,
+                    lineWrapping: savedWrap,
+                    matchBrackets: true,
+                    autoCloseTags: true,
+                    foldGutter: true,
+                    gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+                    extraKeys: {
+                        "Ctrl-Enter": function() { runCode(); },
+                        "Cmd-Enter": function() { runCode(); },
+                        "Ctrl-S": function(cm) { saveToLocal(); showToast('Saved locally'); },
+                        "Cmd-S": function(cm) { saveToLocal(); showToast('Saved locally'); },
+                        "Ctrl-/": function(cm) { cm.toggleComment({ indent: true }); },
+                        "Cmd-/": function(cm) { cm.toggleComment({ indent: true }); },
+                        "Shift-Ctrl-F": function() { formatCode(); },
+                        "Shift-Cmd-F": function() { formatCode(); }
+                    }
+                });
+                editor.setValue(initialCode);
+                wrapBtn.classList.toggle('active', savedWrap);
+                applyTheme(savedTheme);
+
+                editor.on('change', function() {
+                    updateStatusBar();
+                    markUnsaved();
+                    if (autoRunToggle.checked) debouncedRun();
+                    clearTimeout(saveTimer);
+                    saveTimer = setTimeout(saveToLocal, 800);
+                });
+                editor.on('cursorActivity', updateStatusBar);
+
+                updateStatusBar();
+                markSaved();
+                setTimeout(runCode, 200);
+            }
+
+            // ── Status bar helpers ──
+            function updateStatusBar() {
+                if (!editor) return;
+                const cursor = editor.getCursor();
+                statusLineCol.textContent = `Ln ${cursor.line + 1}, Col ${cursor.ch + 1}`;
+                statusChars.textContent = `${editor.getValue().length} chars`;
+            }
+            function markSaved() { statusDot.className = 'dot saved'; statusSaveLabel.textContent = 'Saved'; }
+            function markUnsaved() { statusDot.className = 'dot unsaved'; statusSaveLabel.textContent = 'Unsaved'; }
+            function saveToLocal() {
+                if (!editor) return;
+                try {
+                    localStorage.setItem(STORAGE_KEY, editor.getValue());
+                    markSaved();
+                } catch (e) {
+                    showToast('Could not save (storage full?)');
+                }
+            }
+
+            // ── Debounced auto-run ──
+            function debouncedRun() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(runCode, 500);
+            }
+
+            function setStatus(kind, label) {
+                previewStatus.textContent = label;
+                statusPulse.className = 'pulse ' + kind;
+            }
+
+            // ── Run code ──
+            function runCode() {
+                const code = editor ? editor.getValue() : '';
+                clearTimeout(readyTimeoutId);
+
+                if (code.trim() === '') {
+                    emptyState.style.display = 'flex';
+                    iframe.style.display = 'none';
+                    setStatus('', 'Empty');
+                    isRunning = false;
+                    runBtn.classList.remove('running');
+                    runBtn.textContent = '▶ Run';
+                    return;
+                }
+
+                emptyState.style.display = 'none';
+                iframe.style.display = 'block';
+                isRunning = true;
+                currentRunId += 1;
+                const thisRunId = currentRunId;
+
+                runBtn.classList.add('running');
+                runBtn.textContent = '⏳ Running…';
+                loadingOverlay.classList.add('active');
+                setStatus('busy', 'Rendering…');
+
+                // Clear console for the new run
+                consoleEntries = [];
+                consoleBody.innerHTML = '';
+                consoleCount.textContent = '0';
+
+                // Console/error capture injected into the iframe.
+                // Every message is tagged with a runId so stale iframes from a
+                // previous run can never leak logs into the current run.
+                const injectScript = `
+                (function() {
+                  var runId = ${thisRunId};
+                  function send(type, payload) {
+                    try { window.parent.postMessage(Object.assign({ runId: runId }, payload), '*'); } catch(e) {}
+                  }
+                  function fmt(a) {
+                    try { return typeof a === 'object' ? JSON.stringify(a) : String(a); }
+                    catch(e) { return String(a); }
+                  }
+                  ['log','error','warn','info','debug'].forEach(function(level) {
+                    var original = console[level];
+                    console[level] = function() {
+                      send('console', { level: level, message: Array.prototype.map.call(arguments, fmt).join(' ') });
+                      original.apply(console, arguments);
+                    };
+                  });
+                  window.onerror = function(message, source, lineno, colno) {
+                    send('console', { level: 'error', message: message + ' (line ' + lineno + ')' });
+                    return false;
+                  };
+                  window.addEventListener('unhandledrejection', function(e) {
+                    send('console', { level: 'error', message: 'Unhandled promise rejection: ' + fmt(e.reason) });
+                  });
+                  window.addEventListener('load', function() { send('ready', {}); });
+                  if (document.readyState === 'complete') send('ready', {});
+                })();
+              `;
+
+                // Set event handlers BEFORE assigning srcdoc to avoid
+                // the race where the load fires before the handler is set.
+                iframe.onload = function() { finishRun(thisRunId); };
+
+                readyTimeoutId = setTimeout(function() { finishRun(thisRunId); }, 4000);
+
+                // Prepend the logger script so it runs before any user scripts.
+                // Using srcdoc avoids the cross-origin error that doc.write()
+                // hits when sandbox lacks allow-same-origin.
+                iframe.srcdoc = '<script>' + injectScript + '<\/script>' + code;
+
+                saveToLocal();
+            }
+
+            function finishRun(runId) {
+                if (runId !== currentRunId || !isRunning) return;
+                clearTimeout(readyTimeoutId);
+                loadingOverlay.classList.remove('active');
+                const hasErrors = consoleEntries.some(e => e.level === 'error');
+                setStatus(hasErrors ? 'err' : 'ok', hasErrors ? '⚠️ Errors' : '✅ Ready');
+                runBtn.classList.remove('running');
+                runBtn.textContent = '▶ Run';
+                isRunning = false;
+            }
+
+            // Single, permanent message listener — avoids the classic bug of
+            // re-registering a new listener on every run (which used to
+            // duplicate every console line once per prior run).
+            window.addEventListener('message', function(e) {
+                if (!e.data || typeof e.data !== 'object') return;
+                if (e.data.runId !== currentRunId) return; // stale iframe, ignore
+                if (e.data.type === 'console') {
+                    addConsoleEntry(e.data.level, e.data.message, e.data.runId);
+                    if (e.data.level === 'error') setStatus('err', '⚠️ Errors');
+                } else if (e.data.type === 'ready') {
+                    finishRun(e.data.runId);
+                }
+            });
+
+            // ── Console handling ──
+            function addConsoleEntry(level, message) {
+                consoleEntries.push({ level, message });
+                consoleCount.textContent = consoleEntries.length;
+
+                const div = document.createElement('div');
+                div.className = `log-entry ${level}`;
+                div.textContent = `[${level}] ${message}`;
+                consoleBody.appendChild(div);
+                consoleBody.scrollTop = consoleBody.scrollHeight;
+
+                if (!isConsoleOpen) {
+                    consoleWrapper.classList.add('open');
+                    isConsoleOpen = true;
+                }
+            }
+
+            consoleToggle.addEventListener('click', function(e) {
+                if (e.target === clearConsole) return;
+                isConsoleOpen = !isConsoleOpen;
+                consoleWrapper.classList.toggle('open', isConsoleOpen);
+            });
+            clearConsole.addEventListener('click', function(e) {
+                e.stopPropagation();
+                consoleEntries = [];
+                consoleBody.innerHTML = '';
+                consoleCount.textContent = '0';
+            });
+
+            // ── Format (real beautifier, falls back gracefully) ──
+            function formatCode() {
+                if (!editor) return;
+                const val = editor.getValue();
+                if (typeof html_beautify !== 'function') {
+                    showToast('Formatter failed to load — check your connection');
+                    return;
+                }
+                try {
+                    const cursor = editor.getCursor();
+                    const pretty = html_beautify(val, {
+                        indent_size: 2,
+                        wrap_line_length: 0,
+                        preserve_newlines: true,
+                        max_preserve_newlines: 2,
+                        indent_inner_html: false,
+                        extra_liners: []
+                    });
+                    editor.setValue(pretty);
+                    editor.setCursor(cursor);
+                    saveToLocal();
+                    showToast('Formatted');
+                } catch (e) {
+                    showToast('Could not format: ' + e.message);
+                }
+            }
+
+            // ── Copy ──
+            async function copyCode() {
+                const code = editor ? editor.getValue() : '';
+                try {
+                    await navigator.clipboard.writeText(code);
+                    showToast('Copied to clipboard');
+                } catch (e) {
+                    // Fallback for browsers without clipboard API access
+                    const ta = document.createElement('textarea');
+                    ta.value = code;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand('copy'); showToast('Copied to clipboard'); }
+                    catch (err) { showToast('Copy failed'); }
+                    document.body.removeChild(ta);
+                }
+            }
+
+            // ── Download ──
+            function downloadHTML() {
+                const code = editor ? editor.getValue() : '';
+                const blob = new Blob([code], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'index.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Downloaded index.html');
+            }
+
+            // ── Reset ──
+            function resetCode() {
+                if (!editor) return;
+                if (editor.getValue().trim() !== '' && !confirm('Reset to the default template? Your current code will be lost.')) return;
+                editor.setValue(DEFAULT_HTML);
+                saveToLocal();
+                runCode();
+            }
+
+            // ── Word wrap ──
+            function toggleWrap() {
+                if (!editor) return;
+                const wrap = !editor.getOption('lineWrapping');
+                editor.setOption('lineWrapping', wrap);
+                wrapBtn.classList.toggle('active', wrap);
+                localStorage.setItem(WRAP_KEY, wrap ? '1' : '0');
+            }
+
+            // ── Fullscreen preview ──
+            function toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    previewWrapper.requestFullscreen().catch(() => showToast('Fullscreen not available'));
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+
+            // ── Resize panels (mouse + touch, works for both orientations) ──
+            let isResizing = false, startX, startY, startSize;
+
+            function initResizer() {
+                function begin(clientX, clientY) {
+                    isResizing = true;
+                    resizer.classList.add('active');
+                    startX = clientX;
+                    startY = clientY;
+                    const stacked = mainContainer.classList.contains('stacked');
+                    const rect = editorWrapper.getBoundingClientRect();
+                    startSize = stacked ? rect.height : rect.width;
+                }
+                resizer.addEventListener('mousedown', function(e) {
+                    begin(e.clientX, e.clientY);
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', stop);
+                    e.preventDefault();
+                });
+                resizer.addEventListener('touchstart', function(e) {
+                    const t = e.touches[0];
+                    begin(t.clientX, t.clientY);
+                    document.addEventListener('touchmove', onTouchMove, { passive: false });
+                    document.addEventListener('touchend', stop);
+                    e.preventDefault();
+                }, { passive: false });
+                // Keyboard resize for accessibility
+                resizer.addEventListener('keydown', function(e) {
+                    const stacked = mainContainer.classList.contains('stacked');
+                    const step = 20;
+                    let delta = 0;
+                    if (!stacked && e.key === 'ArrowLeft') delta = -step;
+                    else if (!stacked && e.key === 'ArrowRight') delta = step;
+                    else if (stacked && e.key === 'ArrowUp') delta = -step;
+                    else if (stacked && e.key === 'ArrowDown') delta = step;
+                    else return;
+                    e.preventDefault();
+                    const rect = editorWrapper.getBoundingClientRect();
+                    const current = stacked ? rect.height : rect.width;
+                    applySize(current + delta);
+                });
+            }
+
+            function applySize(size) {
+                const stacked = mainContainer.classList.contains('stacked');
+                const parentRect = mainContainer.getBoundingClientRect();
+                const parentSize = stacked ? parentRect.height : parentRect.width;
+                const min = 120;
+                const max = parentSize - 120;
+                const clamped = Math.min(Math.max(size, min), max);
+                editorWrapper.style.flex = '0 0 ' + clamped + 'px';
+                previewWrapper.style.flex = '1 1 auto';
+                localStorage.setItem(WIDTH_KEY, clamped);
+            }
+
+            function onMove(e) {
+                if (!isResizing) return;
+                const stacked = mainContainer.classList.contains('stacked');
+                const delta = stacked ? (e.clientY - startY) : (e.clientX - startX);
+                applySize(startSize + delta);
+            }
+            function onTouchMove(e) {
+                if (!isResizing) return;
+                const t = e.touches[0];
+                const stacked = mainContainer.classList.contains('stacked');
+                const delta = stacked ? (t.clientY - startY) : (t.clientX - startX);
+                applySize(startSize + delta);
+                e.preventDefault();
+            }
+            function stop() {
+                isResizing = false;
+                resizer.classList.remove('active');
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('touchmove', onTouchMove);
+                document.removeEventListener('mouseup', stop);
+                document.removeEventListener('touchend', stop);
+            }
+
+            // ── Shortcuts help ──
+            function showShortcuts() {
+                showToast('Ctrl/Cmd+Enter run · Ctrl/Cmd+S save · Shift+Ctrl+F format · Ctrl+/ comment');
+            }
+
+            // ── Init ──
+            function init() {
+                initEditor();
+                initResizer();
+                applyLayout(localStorage.getItem(LAYOUT_KEY) || 'side');
+                const savedWidth = localStorage.getItem(WIDTH_KEY);
+                if (savedWidth) applySize(parseFloat(savedWidth));
+
+                runBtn.addEventListener('click', runCode);
+                formatBtn.addEventListener('click', formatCode);
+                copyBtn.addEventListener('click', copyCode);
+                downloadBtn.addEventListener('click', downloadHTML);
+                resetBtn.addEventListener('click', resetCode);
+                wrapBtn.addEventListener('click', toggleWrap);
+                layoutBtn.addEventListener('click', toggleLayout);
+                themeBtn.addEventListener('click', toggleTheme);
+                fullscreenBtn.addEventListener('click', toggleFullscreen);
+                shortcutsBtn.addEventListener('click', showShortcuts);
+
+                autoRunToggle.addEventListener('change', function() {
+                    if (this.checked) runCode();
+                });
+
+                document.addEventListener('keydown', function(e) {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                        e.preventDefault();
+                        runCode();
+                    }
+                });
+
+                setTimeout(saveToLocal, 100);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>
